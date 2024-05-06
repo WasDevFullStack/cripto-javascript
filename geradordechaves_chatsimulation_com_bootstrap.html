@@ -45,23 +45,38 @@
         <div id="chatSimulation" class="tabcontent mt-3">
             <h2>Simulação do Chat</h2>
 
-            <div id="alice">
-                <h3>Alice</h3>
+            <div class="row">
+                <div class="col">
+                    <div id="alice">
+                        <h3>Alice</h3>
 
-                <textarea id="alicePrivateMessage" class="form-control" rows="4"></textarea><br><br>
+                        <textarea id="aliceMessage" class="form-control" rows="4"></textarea><br><br>
 
-                <button class="btn btn-primary" onclick="aliceEncryptAndSendMessage()">Enviar Mensagem</button><br><br>
+                        <input type="file" id="aliceFile"><br><br>
+
+                        <button class="btn btn-primary" onclick="aliceSendMessage()">Enviar</button><br><br>
+                    </div>
+                </div>
+
+                <div class="col">
+                    <div id="bob">
+                        <h3>Bob</h3>
+
+                        <textarea id="bobMessage" class="form-control" rows="4"></textarea><br><br>
+
+                        <input type="file" id="bobFile"><br><br>
+
+                        <button class="btn btn-primary" onclick="bobSendMessage()">Enviar</button><br><br>
+                    </div>
+                </div>
             </div>
 
             <hr>
 
-            <div id="bob">
-                <h3>Bob</h3>
+            <div>
+                <h3>Histórico de Conversas</h3>
 
-                <textarea id="bobDecryptedMessage" class="form-control" rows="4" readonly></textarea><br><br>
-
-                <textarea id="bobDecryptedMessageDisplay" class="form-control" rows="4" readonly></textarea><br><br>
-                <button class="btn btn-primary" onclick="bobDecryptMessage()">Descriptografar Mensagem</button><br><br>
+                <div id="conversationHistory" class="form-control" rows="10" style="overflow-y: scroll; height: 300px;"></div>
             </div>
         </div>
     </div>
@@ -69,6 +84,10 @@
     <!-- Adicionando o JavaScript do Bootstrap -->
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
     <script>
+        // Variáveis para armazenar as mensagens de Alice e Bob
+        let aliceMessages = [];
+        let bobMessages = [];
+
         // Função para abrir a tab selecionada
         function openTab(evt, tabName) {
             const tabcontent = document.getElementsByClassName("tabcontent");
@@ -83,8 +102,12 @@
             evt.currentTarget.classList.add("active");
         }
 
-        let alicePrivateKey;
-        let bobPublicKey;
+        // Função para adicionar mensagem ao histórico
+        function addToConversationHistory(message) {
+            const conversationHistory = document.getElementById('conversationHistory');
+            conversationHistory.innerHTML += message + "<br><br>";
+            conversationHistory.scrollTop = conversationHistory.scrollHeight;
+        }
 
         async function generateKeyPair() {
             try {
@@ -106,17 +129,11 @@
                     keys.publicKey
                 );
 
-                // Salvar a chave pública de Alice para uso posterior
-                bobPublicKey = keys.publicKey;
-
-                // Salvar a chave privada de Alice para uso posterior
-                alicePrivateKey = keys.privateKey;
-
                 // Exibir a chave pública na página
                 const publicKeyTextarea = document.getElementById('publicKey');
                 publicKeyTextarea.value = `-----BEGIN PUBLIC KEY-----\n${arrayBufferToBase64(exportedPublicKey)}\n-----END PUBLIC KEY-----`;
 
-                // Exportar a chave privada
+                // Exportar a chave privada de Alice
                 const exportedPrivateKey = await window.crypto.subtle.exportKey(
                     "pkcs8",
                     keys.privateKey
@@ -130,51 +147,74 @@
             }
         }
 
-        async function aliceEncryptAndSendMessage() {
-            const message = document.getElementById('alicePrivateMessage').value;
-            if (!message) {
-                alert("Por favor, insira uma mensagem para enviar.");
+        async function aliceSendMessage() {
+            const message = document.getElementById('aliceMessage').value;
+            const file = document.getElementById('aliceFile').files[0];
+            if (!message && !file) {
+                alert("Por favor, insira uma mensagem ou selecione um arquivo para enviar.");
                 return;
             }
-            try {
-                // Criptografar a mensagem de Alice usando a chave pública de Bob
-                const encryptedMessage = await window.crypto.subtle.encrypt(
-                    {
-                        name: "RSA-OAEP"
-                    },
-                    bobPublicKey,
-                    new TextEncoder().encode(message)
-                );
-
-                // Exibir a mensagem criptografada na página de Bob
-                document.getElementById('bobDecryptedMessage').value = arrayBufferToBase64(encryptedMessage);
-            } catch (error) {
-                console.error(error);
+            const messageObject = {
+                type: "message",
+                content: message,
+                file: file
+            };
+            bobMessages.push(messageObject);
+            if (message) {
+                addToConversationHistory("Alice: " + message);
+            } else {
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    const img = document.createElement("img");
+                    img.src = e.target.result;
+                    addToConversationHistory("Alice enviou uma imagem:");
+                    addToConversationHistory(img.outerHTML);
+                };
+                reader.readAsDataURL(file);
             }
+            updateBobInterface();
         }
 
-        async function bobDecryptMessage() {
-            const encryptedMessage = document.getElementById('bobDecryptedMessage').value;
-            if (!encryptedMessage) {
-                alert("Por favor, insira uma mensagem criptografada para descriptografar.");
+        async function bobSendMessage() {
+            const message = document.getElementById('bobMessage').value;
+            const file = document.getElementById('bobFile').files[0];
+            if (!message && !file) {
+                alert("Por favor, insira uma mensagem ou selecione um arquivo para enviar.");
                 return;
             }
-            try {
-                // Descriptografar a mensagem de Bob usando sua chave privada
-                const decryptedMessageBuffer = await window.crypto.subtle.decrypt(
-                    {
-                        name: "RSA-OAEP"
-                    },
-                    alicePrivateKey,
-                    base64ToArrayBuffer(encryptedMessage)
-                );
-
-                // Exibir a mensagem descriptografada
-                const decryptedMessage = new TextDecoder().decode(decryptedMessageBuffer);
-                document.getElementById('bobDecryptedMessageDisplay').value = decryptedMessage;
-            } catch (error) {
-                console.error(error);
+            const messageObject = {
+                type: "message",
+                content: message,
+                file: file
+            };
+            aliceMessages.push(messageObject);
+            if (message) {
+                addToConversationHistory("Bob: " + message);
+            } else {
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    const img = document.createElement("img");
+                    img.src = e.target.result;
+                    addToConversationHistory("Bob enviou uma imagem:");
+                    addToConversationHistory(img.outerHTML);
+                };
+                reader.readAsDataURL(file);
             }
+            updateAliceInterface();
+        }
+
+        // Função para atualizar a interface de Alice
+        function updateAliceInterface() {
+            const aliceMessageTextarea = document.getElementById('aliceMessage');
+            aliceMessageTextarea.value = "";
+            document.getElementById('aliceFile').value = "";
+        }
+
+        // Função para atualizar a interface de Bob
+        function updateBobInterface() {
+            const bobMessageTextarea = document.getElementById('bobMessage');
+            bobMessageTextarea.value = "";
+            document.getElementById('bobFile').value = "";
         }
 
         // Função para converter um ArrayBuffer em uma string base64
@@ -186,16 +226,6 @@
                 binary += String.fromCharCode(bytes[i]);
             }
             return window.btoa(binary);
-        }
-
-        // Função para converter uma string base64 em um ArrayBuffer
-        function base64ToArrayBuffer(base64) {
-            const binaryString = window.atob(base64);
-            const bytes = new Uint8Array(binaryString.length);
-            for (let i = 0; i < binaryString.length; i++) {
-                bytes[i] = binaryString.charCodeAt(i);
-            }
-            return bytes.buffer;
         }
 
         // Função para copiar o conteúdo de uma textarea para a área de transferência

@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comunicação Segura</title>
+    <!-- Adicionando os estilos do Bootstrap -->
+    <link href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        /* Estilo personalizado para ajustar a aparência dos botões do Bootstrap */
+        .btn-custom {
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="mt-5">Comunicação Segura entre Alice e Bob</h1>
+
+        <ul class="nav nav-tabs mt-5">
+            <li class="nav-item">
+                <a class="nav-link active" href="#keyGeneration" onclick="openTab(event, 'keyGeneration')">Gerar Chave</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#chatSimulation" onclick="openTab(event, 'chatSimulation')">Simulação do Chat</a>
+            </li>
+        </ul>
+
+        <!-- Tab de Geração de Chave -->
+        <div id="keyGeneration" class="tabcontent mt-3">
+            <h2>Gerar Chave RSA</h2>
+
+            <button class="btn btn-primary" onclick="generateKeyPair()">Gerar Chave</button><br><br>
+
+            <textarea id="publicKey" class="form-control" rows="4" readonly></textarea>
+            <button class="btn btn-secondary btn-custom" onclick="copyToClipboard('publicKey')">Copiar Chave Pública</button><br><br>
+
+            <textarea id="privateKey" class="form-control" rows="4" readonly></textarea>
+            <button class="btn btn-secondary btn-custom" onclick="copyToClipboard('privateKey')">Copiar Chave Privada</button><br><br>
+        </div>
+
+        <!-- Tab de Simulação do Chat -->
+        <div id="chatSimulation" class="tabcontent mt-3">
+            <h2>Simulação do Chat</h2>
+
+            <div id="alice">
+                <h3>Alice</h3>
+
+                <textarea id="alicePrivateMessage" class="form-control" rows="4"></textarea><br><br>
+
+                <button class="btn btn-primary" onclick="aliceEncryptAndSendMessage()">Enviar Mensagem</button><br><br>
+            </div>
+
+            <hr>
+
+            <div id="bob">
+                <h3>Bob</h3>
+
+                <textarea id="bobDecryptedMessage" class="form-control" rows="4" readonly></textarea><br><br>
+
+                <textarea id="bobDecryptedMessageDisplay" class="form-control" rows="4" readonly></textarea><br><br>
+                <button class="btn btn-primary" onclick="bobDecryptMessage()">Descriptografar Mensagem</button><br><br>
+            </div>
+        </div>
+    </div>
+
+    <!-- Adicionando o JavaScript do Bootstrap -->
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script>
+        // Função para abrir a tab selecionada
+        function openTab(evt, tabName) {
+            const tabcontent = document.getElementsByClassName("tabcontent");
+            for (let i = 0; i < tabcontent.length; i++) {
+                tabcontent[i].style.display = "none";
+            }
+            const navLinks = document.getElementsByClassName("nav-link");
+            for (let i = 0; i < navLinks.length; i++) {
+                navLinks[i].classList.remove("active");
+            }
+            document.getElementById(tabName).style.display = "block";
+            evt.currentTarget.classList.add("active");
+        }
+
+        let alicePrivateKey;
+        let bobPublicKey;
+
+        async function generateKeyPair() {
+            try {
+                // Gerar as chaves RSA para Alice
+                const keys = await window.crypto.subtle.generateKey(
+                    {
+                        name: "RSA-OAEP",
+                        modulusLength: 2048,
+                        publicExponent: new Uint8Array([0x01, 0x00, 0x01]), // 65537
+                        hash: { name: "SHA-256" }
+                    },
+                    true, // Extrair a chave privada também
+                    ["encrypt", "decrypt"]
+                );
+
+                // Exportar a chave pública de Alice
+                const exportedPublicKey = await window.crypto.subtle.exportKey(
+                    "spki",
+                    keys.publicKey
+                );
+
+                // Salvar a chave pública de Alice para uso posterior
+                bobPublicKey = keys.publicKey;
+
+                // Salvar a chave privada de Alice para uso posterior
+                alicePrivateKey = keys.privateKey;
+
+                // Exibir a chave pública na página
+                const publicKeyTextarea = document.getElementById('publicKey');
+                publicKeyTextarea.value = `-----BEGIN PUBLIC KEY-----\n${arrayBufferToBase64(exportedPublicKey)}\n-----END PUBLIC KEY-----`;
+
+                // Exportar a chave privada
+                const exportedPrivateKey = await window.crypto.subtle.exportKey(
+                    "pkcs8",
+                    keys.privateKey
+                );
+
+                // Exibir a chave privada na página
+                const privateKeyTextarea = document.getElementById('privateKey');
+                privateKeyTextarea.value = `-----BEGIN PRIVATE KEY-----\n${arrayBufferToBase64(exportedPrivateKey)}\n-----END PRIVATE KEY-----`;
+            } catch (error) {
+                console.error(error);
+            }
+        }
+
+        async function aliceEncryptAndSendMessage() {
+            const message = document.getElementById('alicePrivateMessage').value;
+            if (!message) {
+                alert("Por favor, insira uma mensagem para enviar.");
+                return;
+            }
+            try {
+                // Criptografar a mensagem de Alice usando a chave pública de Bob
+                const encryptedMessage = await window.crypto.subtle.encrypt(
+                    {
+                        name: "RSA-OAEP"
+                    },
+                    bobPublicKey,
+                    new TextEncoder().encode(message)
+                );
+
+                // Exibir a mensagem criptografada na página de Bob
+                document.getElementById('bobDecryptedMessage').value = arrayBufferToBase64(encryptedMessage);
+            } catch (error) {
+                console.error(error);
+            }
+        }
+
+        async function bobDecryptMessage() {
+            const encryptedMessage = document.getElementById('bobDecryptedMessage').value;
+            if (!encryptedMessage) {
+                alert("Por favor, insira uma mensagem criptografada para descriptografar.");
+                return;
+            }
+            try {
+                // Descriptografar a mensagem de Bob usando sua chave privada
+                const decryptedMessageBuffer = await window.crypto.subtle.decrypt(
+                    {
+                        name: "RSA-OAEP"
+                    },
+                    alicePrivateKey,
+                    base64ToArrayBuffer(encryptedMessage)
+                );
+
+                // Exibir a mensagem descriptografada
+                const decryptedMessage = new TextDecoder().decode(decryptedMessageBuffer);
+                document.getElementById('bobDecryptedMessageDisplay').value = decryptedMessage;
+            } catch (error) {
+                console.error(error);
+            }
+        }
+
+        // Função para converter um ArrayBuffer em uma string base64
+        function arrayBufferToBase64(buffer) {
+            let binary = '';
+            const bytes = new Uint8Array(buffer);
+            const len = bytes.byteLength;
+            for (let i = 0; i < len; i++) {
+                binary += String.fromCharCode(bytes[i]);
+            }
+            return window.btoa(binary);
+        }
+
+        // Função para converter uma string base64 em um ArrayBuffer
+        function base64ToArrayBuffer(base64) {
+            const binaryString = window.atob(base64);
+            const bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            return bytes.buffer;
+        }
+
+        // Função para copiar o conteúdo de uma textarea para a área de transferência
+        function copyToClipboard(elementId) {
+            const element = document.getElementById(elementId);
+            element.select();
+            document.execCommand("copy");
+            alert(`Conteúdo copiado para a área de transferência: ${element.value}`);
+        }
+
+        // Abrir a primeira tab por padrão
+        document.getElementsByClassName("nav-link")[0].click();
+    </script>
+</body>
+</html>

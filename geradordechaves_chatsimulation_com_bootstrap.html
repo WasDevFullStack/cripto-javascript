@@ -118,6 +118,8 @@
 
     <!-- Adicionando o JavaScript do Bootstrap -->
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.0.3/pako.min.js"></script>
+
     <script>
         // Variáveis para armazenar as mensagens de Alice e Bob
         let aliceMessages = [];
@@ -184,15 +186,16 @@
         }
 
         async function decryptMessage(encryptedMessage, privateKey) {
-            const decryptedMessage = await window.crypto.subtle.decrypt(
-                {
-                    name: "RSA-OAEP"
-                },
-                privateKey,
-                encryptedMessage
-            );
-            return new TextDecoder().decode(decryptedMessage);
-        }
+			const decompressedMessage = pako.inflate(encryptedMessage);
+			const decryptedMessage = await window.crypto.subtle.decrypt(
+				{
+					name: "RSA-OAEP"
+				},
+				privateKey,
+				decompressedMessage
+			);
+			return new TextDecoder().decode(decryptedMessage);
+		}
 
         async function aliceSendMessage() {
             const message = document.getElementById('aliceMessage').value;
@@ -327,16 +330,17 @@
         }
 
         async function encryptMessage(message, publicKey) {
-            const encodedMessage = new TextEncoder().encode(message);
-            const encryptedMessage = await window.crypto.subtle.encrypt(
-                {
-                    name: "RSA-OAEP"
-                },
-                publicKey,
-                encodedMessage
-            );
-            return encryptedMessage;
-        }
+			const encodedMessage = new TextEncoder().encode(message);
+			const encryptedMessage = await window.crypto.subtle.encrypt(
+				{
+					name: "RSA-OAEP"
+				},
+				publicKey,
+				encodedMessage
+			);
+			const compressedMessage = pako.deflate(encryptedMessage);
+			return compressedMessage;
+		}
 
         // Função para converter uma string base64 em um ArrayBuffer
         function base64ToArrayBuffer(base64) {

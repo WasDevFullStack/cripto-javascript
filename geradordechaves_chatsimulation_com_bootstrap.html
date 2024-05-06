@@ -22,12 +22,18 @@
         .message-image {
             max-width: 400px;
         }
+
+        /* Estilo para o box de mensagem */
+        .message-box {
+            border-radius: 10px;
+            border: 1px solid #ced4da;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1 class="mt-5">Comunicação Segura entre Alice e Bob</h1>
-
         <ul class="nav nav-tabs mt-5">
             <li class="nav-item">
                 <a class="nav-link active" href="#keyGeneration" onclick="openTab(event, 'keyGeneration')">Gerar Chave</a>
@@ -61,11 +67,19 @@
                     <div id="alice">
                         <h3>Alice</h3>
 
-                        <textarea id="aliceMessage" class="form-control" rows="4"></textarea><br><br>
+                        <div class="message-box">
+                            <textarea id="aliceMessage" class="form-control" rows="3" placeholder="Escreva uma mensagem..."></textarea>
+                        </div>
 
-                        <input type="file" id="aliceFile"><br><br>
-
-                        <button class="btn btn-primary" onclick="aliceSendMessage()">Enviar</button><br><br>
+                        <div class="input-group">
+                            <div class="custom-file">
+                                <input type="file" id="aliceFile" class="custom-file-input" onchange="updateFileLabel('aliceFile')">
+                                <label class="custom-file-label" for="aliceFile">Escolha um arquivo</label>
+                            </div>
+                            <div class="input-group-append">
+                                <button class="btn btn-primary" onclick="aliceSendMessage()">Enviar</button>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -73,11 +87,19 @@
                     <div id="bob">
                         <h3>Bob</h3>
 
-                        <textarea id="bobMessage" class="form-control" rows="4"></textarea><br><br>
+                        <div class="message-box">
+                            <textarea id="bobMessage" class="form-control" rows="3" placeholder="Escreva uma mensagem..."></textarea>
+                        </div>
 
-                        <input type="file" id="bobFile"><br><br>
-
-                        <button class="btn btn-primary" onclick="bobSendMessage()">Enviar</button><br><br>
+                        <div class="input-group">
+                            <div class="custom-file">
+                                <input type="file" id="bobFile" class="custom-file-input" onchange="updateFileLabel('bobFile')">
+                                <label class="custom-file-label" for="bobFile">Escolha um arquivo</label>
+                            </div>
+                            <div class="input-group-append">
+                                <button class="btn btn-primary" onclick="bobSendMessage()">Enviar</button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -203,6 +225,7 @@
                 reader.readAsDataURL(file);
             }
             updateBobInterface();
+            resetFileInput('aliceFile');
         }
 
         async function bobSendMessage() {
@@ -250,20 +273,33 @@
                 reader.readAsDataURL(file);
             }
             updateAliceInterface();
+            resetFileInput('bobFile');
         }
 
         // Função para atualizar a interface de Alice
         function updateAliceInterface() {
             const aliceMessageTextarea = document.getElementById('aliceMessage');
             aliceMessageTextarea.value = "";
-            document.getElementById('aliceFile').value = "";
         }
 
         // Função para atualizar a interface de Bob
         function updateBobInterface() {
             const bobMessageTextarea = document.getElementById('bobMessage');
             bobMessageTextarea.value = "";
-            document.getElementById('bobFile').value = "";
+        }
+
+        // Função para limpar o campo de seleção de arquivo
+        function resetFileInput(inputId) {
+            document.getElementById(inputId).value = "";
+            updateFileLabel(inputId);
+        }
+
+        // Função para atualizar o rótulo do arquivo com o nome do arquivo selecionado
+        function updateFileLabel(inputId) {
+            const fileInput = document.getElementById(inputId);
+            const fileName = fileInput.files[0]?.name || "Escolha um arquivo";
+            const label = fileInput.nextElementSibling;
+            label.innerText = fileName;
         }
 
         // Função para converter um ArrayBuffer em uma string base64

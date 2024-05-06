@@ -121,6 +121,10 @@
         let aliceMessages = [];
         let bobMessages = [];
 
+        // Chaves RSA da caixa de mensagens
+        let publicKey;
+        let privateKey;
+
         // Função para abrir a tab selecionada
         function openTab(evt, tabName) {
             const tabcontent = document.getElementsByClassName("tabcontent");
@@ -144,7 +148,7 @@
 
         async function generateKeyPair() {
             try {
-                // Gerar as chaves RSA para Alice
+                // Gerar as chaves RSA para a caixa de mensagens
                 const keys = await window.crypto.subtle.generateKey(
                     {
                         name: "RSA-OAEP",
@@ -156,20 +160,24 @@
                     ["encrypt", "decrypt"]
                 );
 
-                // Exportar a chave pública de Alice
+                // Armazenar as chaves RSA
+                publicKey = keys.publicKey;
+                privateKey = keys.privateKey;
+
+                // Exportar a chave pública
                 const exportedPublicKey = await window.crypto.subtle.exportKey(
                     "spki",
-                    keys.publicKey
+                    publicKey
                 );
 
                 // Exibir a chave pública na página
                 const publicKeyTextarea = document.getElementById('publicKey');
                 publicKeyTextarea.value = `-----BEGIN PUBLIC KEY-----\n${arrayBufferToBase64(exportedPublicKey)}\n-----END PUBLIC KEY-----`;
 
-                // Exportar a chave privada de Alice
+                // Exportar a chave privada
                 const exportedPrivateKey = await window.crypto.subtle.exportKey(
                     "pkcs8",
-                    keys.privateKey
+                    privateKey
                 );
 
                 // Exibir a chave privada na página
@@ -180,6 +188,17 @@
             }
         }
 
+        async function decryptMessage(encryptedMessage, privateKey) {
+            const decryptedMessage = await window.crypto.subtle.decrypt(
+                {
+                    name: "RSA-OAEP"
+                },
+                privateKey,
+                encryptedMessage
+            );
+            return new TextDecoder().decode(decryptedMessage);
+        }
+
         async function aliceSendMessage() {
             const message = document.getElementById('aliceMessage').value;
             const file = document.getElementById('aliceFile').files[0];
@@ -187,9 +206,10 @@
                 alert("Por favor, insira uma mensagem ou selecione um arquivo para enviar.");
                 return;
             }
+            const encryptedMessage = await encryptMessage(message, publicKey);
             const messageObject = {
                 type: "message",
-                content: message,
+                content: arrayBufferToBase64(encryptedMessage),
                 file: file
             };
             bobMessages.push(messageObject);
@@ -235,9 +255,10 @@
                 alert("Por favor, insira uma mensagem ou selecione um arquivo para enviar.");
                 return;
             }
+            const encryptedMessage = await encryptMessage(message, publicKey);
             const messageObject = {
                 type: "message",
-                content: message,
+                content: arrayBufferToBase64(encryptedMessage),
                 file: file
             };
             aliceMessages.push(messageObject);
@@ -276,16 +297,36 @@
             resetFileInput('bobFile');
         }
 
-        // Função para atualizar a interface de Alice
-        function updateAliceInterface() {
-            const aliceMessageTextarea = document.getElementById('aliceMessage');
-            aliceMessageTextarea.value = "";
+        async function handleMessage(message, sender) {
+            const encryptedMessage = message.content;
+            const decryptedMessage = await decryptMessage(base64ToArrayBuffer(encryptedMessage), privateKey);
+            if (sender === "Alice") {
+                addToConversationHistory("Alice: " + decryptedMessage);
+            } else if (sender === "Bob") {
+                addToConversationHistory("Bob: " + decryptedMessage);
+            }
         }
 
-        // Função para atualizar a interface de Bob
-        function updateBobInterface() {
-            const bobMessageTextarea = document.getElementById('bobMessage');
-            bobMessageTextarea.value = "";
+        async function encryptMessage(message, publicKey) {
+            const encodedMessage = new TextEncoder().encode(message);
+            const encryptedMessage = await window.crypto.subtle.encrypt(
+                {
+                    name: "RSA-OAEP"
+                },
+                publicKey,
+                encodedMessage
+            );
+            return encryptedMessage;
+        }
+
+        // Função para converter uma string base64 em um ArrayBuffer
+        function base64ToArrayBuffer(base64) {
+            const binaryString = window.atob(base64);
+            const bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            return bytes.buffer;
         }
 
         // Função para limpar o campo de seleção de arquivo
@@ -332,6 +373,18 @@
             document.body.appendChild(a);
             a.click();
             window.URL.revokeObjectURL(url);
+        }
+
+        // Função para atualizar a interface de Alice
+        function updateAliceInterface() {
+            const aliceMessageTextarea = document.getElementById('aliceMessage');
+            aliceMessageTextarea.value = "";
+        }
+
+        // Função para atualizar a interface de Bob
+        function updateBobInterface() {
+            const bobMessageTextarea = document.getElementById('bobMessage');
+            bobMessageTextarea.value = "";
         }
 
         // Abrir a primeira tab por padrão

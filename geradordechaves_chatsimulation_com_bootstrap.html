@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Comunicação Segura</title>
+    <!-- Adicionando o jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <!-- Adicionando os estilos do Bootstrap -->
     <link href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
     <style>
@@ -109,7 +111,7 @@
             <div>
                 <h3>Histórico de Conversas</h3>
 
-                <div id="conversationHistory" class="form-control" rows="10" style="overflow-y: scroll; height: 300px;"></div>
+                <div id="conversationHistory" class="form-control" style="overflow-y: scroll; height: 300px;"></div>
             </div>
         </div>
     </div>
@@ -137,13 +139,6 @@
             }
             document.getElementById(tabName).style.display = "block";
             evt.currentTarget.classList.add("active");
-        }
-
-        // Função para adicionar mensagem ao histórico
-        function addToConversationHistory(message) {
-            const conversationHistory = document.getElementById('conversationHistory');
-            conversationHistory.innerHTML += message + "<br><br>";
-            conversationHistory.scrollTop = conversationHistory.scrollHeight;
         }
 
         async function generateKeyPair() {
@@ -214,37 +209,16 @@
             };
             bobMessages.push(messageObject);
             if (message) {
-                addToConversationHistory("Alice: " + message);
+                handleMessage(messageObject, "Alice", false);
             } else {
                 const reader = new FileReader();
                 reader.onload = function (e) {
-                    if (file.type.startsWith('image/')) {
-                        const img = document.createElement("img");
-                        img.src = e.target.result;
-                        img.classList.add("message-image");
-                        addToConversationHistory("Alice enviou uma imagem:");
-                        addToConversationHistory(img.outerHTML);
-                        // Adicionar link para download da imagem
-                        const downloadLink = document.createElement("a");
-                        downloadLink.href = e.target.result;
-                        downloadLink.download = "image.jpg";
-                        downloadLink.innerText = "Baixar imagem";
-                        addToConversationHistory(downloadLink.outerHTML);
-                    } else {
-                        const icon = document.createElement("i");
-                        icon.classList.add("file-icon", "fa", "fa-file");
-                        const link = document.createElement("a");
-                        link.href = e.target.result;
-                        link.download = file.name;
-                        link.innerText = file.name;
-                        addToConversationHistory("Alice enviou um arquivo:");
-                        addToConversationHistory(icon.outerHTML + " ");
-                        addToConversationHistory(link.outerHTML);
-                    }
+                    handleMessage(messageObject, "Alice", true);
                 };
                 reader.readAsDataURL(file);
             }
             updateBobInterface();
+            document.getElementById('aliceMessage').value = "";
             resetFileInput('aliceFile');
         }
 
@@ -263,48 +237,93 @@
             };
             aliceMessages.push(messageObject);
             if (message) {
-                addToConversationHistory("Bob: " + message);
+                handleMessage(messageObject, "Bob", false);
             } else {
                 const reader = new FileReader();
                 reader.onload = function (e) {
-                    if (file.type.startsWith('image/')) {
-                        const img = document.createElement("img");
-                        img.src = e.target.result;
-                        img.classList.add("message-image");
-                        addToConversationHistory("Bob enviou uma imagem:");
-                        addToConversationHistory(img.outerHTML);
-                        // Adicionar link para download da imagem
-                        const downloadLink = document.createElement("a");
-                        downloadLink.href = e.target.result;
-                        downloadLink.download = "image.jpg";
-                        downloadLink.innerText = "Baixar imagem";
-                        addToConversationHistory(downloadLink.outerHTML);
-                    } else {
-                        const icon = document.createElement("i");
-                        icon.classList.add("file-icon", "fa", "fa-file");
-                        const link = document.createElement("a");
-                        link.href = e.target.result;
-                        link.download = file.name;
-                        link.innerText = file.name;
-                        addToConversationHistory("Bob enviou um arquivo:");
-                        addToConversationHistory(icon.outerHTML + " ");
-                        addToConversationHistory(link.outerHTML);
-                    }
+                    handleMessage(messageObject, "Bob", true);
                 };
                 reader.readAsDataURL(file);
             }
             updateAliceInterface();
+            document.getElementById('bobMessage').value = "";
             resetFileInput('bobFile');
         }
 
-        async function handleMessage(message, sender) {
-            const encryptedMessage = message.content;
-            const decryptedMessage = await decryptMessage(base64ToArrayBuffer(encryptedMessage), privateKey);
-            if (sender === "Alice") {
-                addToConversationHistory("Alice: " + decryptedMessage);
-            } else if (sender === "Bob") {
-                addToConversationHistory("Bob: " + decryptedMessage);
+        async function handleMessage(message, sender, isFile) {
+            const conversationHistory = document.getElementById('conversationHistory');
+
+            if (!isFile) {
+                // Se não for um arquivo, assume que é uma mensagem criptografada
+                const encryptedMessage = message.content;
+                const decryptedMessage = await decryptMessage(base64ToArrayBuffer(encryptedMessage), privateKey);
+                if (sender === "Alice") {
+                    conversationHistory.innerHTML += "<b>Alice:</b> " + decryptedMessage + "<br>";
+                } else if (sender === "Bob") {
+                    conversationHistory.innerHTML += "<b>Bob:</b> " + decryptedMessage + "<br>";
+                }
+            } else {
+                // Se for um arquivo, exibe-o na conversa
+                if (sender === "Alice") {
+                    if (isImage(message.file.type)) {
+                        const img = document.createElement("img");
+                        img.src = URL.createObjectURL(message.file);
+                        img.classList.add("message-image");
+                        conversationHistory.appendChild(img);
+                        conversationHistory.appendChild(document.createElement("br"));
+                        addDownloadLink(conversationHistory, message.file);
+                    } else {
+                        const icon = document.createElement("i");
+                        icon.classList.add("file-icon", "fa", "fa-file");
+                        const link = document.createElement("a");
+                        link.href = URL.createObjectURL(message.file);
+                        link.download = message.file.name;
+                        link.innerText = message.file.name;
+                        conversationHistory.appendChild(icon);
+                        conversationHistory.appendChild(link);
+                        conversationHistory.appendChild(document.createElement("br"));
+                        addDownloadLink(conversationHistory, message.file);
+                    }
+                } else if (sender === "Bob") {
+                    if (isImage(message.file.type)) {
+                        const img = document.createElement("img");
+                        img.src = URL.createObjectURL(message.file);
+                        img.classList.add("message-image");
+                        conversationHistory.appendChild(img);
+                        conversationHistory.appendChild(document.createElement("br"));
+                        addDownloadLink(conversationHistory, message.file);
+                    } else {
+                        const icon = document.createElement("i");
+                        icon.classList.add("file-icon", "fa", "fa-file");
+                        const link = document.createElement("a");
+                        link.href = URL.createObjectURL(message.file);
+                        link.download = message.file.name;
+                        link.innerText = message.file.name;
+                        conversationHistory.appendChild(icon);
+                        conversationHistory.appendChild(link);
+                        conversationHistory.appendChild(document.createElement("br"));
+                        addDownloadLink(conversationHistory, message.file);
+                    }
+                }
             }
+            conversationHistory.scrollTop = conversationHistory.scrollHeight;
+        }
+
+        function addDownloadLink(conversationHistory, file) {
+			const downloadLink = document.createElement("a");
+			downloadLink.href = URL.createObjectURL(file);
+			downloadLink.download = file.name;
+			if (isImage(file.type)) {
+				downloadLink.innerText = "Baixar";
+			}
+			conversationHistory.appendChild(downloadLink);
+			conversationHistory.appendChild(document.createElement("br"));
+		}
+
+
+        // Função para verificar se um arquivo é uma imagem
+        function isImage(fileType) {
+            return fileType.startsWith("image/");
         }
 
         async function encryptMessage(message, publicKey) {

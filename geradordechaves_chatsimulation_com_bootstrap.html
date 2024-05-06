@@ -11,6 +11,17 @@
         .btn-custom {
             margin-top: 10px;
         }
+
+        /* Estilo para o ícone de arquivo */
+        .file-icon {
+            font-size: 24px;
+            color: #007bff;
+        }
+
+        /* Estilo para ajustar o tamanho das imagens */
+        .message-image {
+            max-width: 400px;
+        }
     </style>
 </head>
 <body>
@@ -165,10 +176,29 @@
             } else {
                 const reader = new FileReader();
                 reader.onload = function (e) {
-                    const img = document.createElement("img");
-                    img.src = e.target.result;
-                    addToConversationHistory("Alice enviou uma imagem:");
-                    addToConversationHistory(img.outerHTML);
+                    if (file.type.startsWith('image/')) {
+                        const img = document.createElement("img");
+                        img.src = e.target.result;
+                        img.classList.add("message-image");
+                        addToConversationHistory("Alice enviou uma imagem:");
+                        addToConversationHistory(img.outerHTML);
+                        // Adicionar link para download da imagem
+                        const downloadLink = document.createElement("a");
+                        downloadLink.href = e.target.result;
+                        downloadLink.download = "image.jpg";
+                        downloadLink.innerText = "Baixar imagem";
+                        addToConversationHistory(downloadLink.outerHTML);
+                    } else {
+                        const icon = document.createElement("i");
+                        icon.classList.add("file-icon", "fa", "fa-file");
+                        const link = document.createElement("a");
+                        link.href = e.target.result;
+                        link.download = file.name;
+                        link.innerText = file.name;
+                        addToConversationHistory("Alice enviou um arquivo:");
+                        addToConversationHistory(icon.outerHTML + " ");
+                        addToConversationHistory(link.outerHTML);
+                    }
                 };
                 reader.readAsDataURL(file);
             }
@@ -193,10 +223,29 @@
             } else {
                 const reader = new FileReader();
                 reader.onload = function (e) {
-                    const img = document.createElement("img");
-                    img.src = e.target.result;
-                    addToConversationHistory("Bob enviou uma imagem:");
-                    addToConversationHistory(img.outerHTML);
+                    if (file.type.startsWith('image/')) {
+                        const img = document.createElement("img");
+                        img.src = e.target.result;
+                        img.classList.add("message-image");
+                        addToConversationHistory("Bob enviou uma imagem:");
+                        addToConversationHistory(img.outerHTML);
+                        // Adicionar link para download da imagem
+                        const downloadLink = document.createElement("a");
+                        downloadLink.href = e.target.result;
+                        downloadLink.download = "image.jpg";
+                        downloadLink.innerText = "Baixar imagem";
+                        addToConversationHistory(downloadLink.outerHTML);
+                    } else {
+                        const icon = document.createElement("i");
+                        icon.classList.add("file-icon", "fa", "fa-file");
+                        const link = document.createElement("a");
+                        link.href = e.target.result;
+                        link.download = file.name;
+                        link.innerText = file.name;
+                        addToConversationHistory("Bob enviou um arquivo:");
+                        addToConversationHistory(icon.outerHTML + " ");
+                        addToConversationHistory(link.outerHTML);
+                    }
                 };
                 reader.readAsDataURL(file);
             }

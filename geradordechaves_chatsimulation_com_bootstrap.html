@@ -33,10 +33,12 @@
             <button class="btn btn-primary" onclick="generateKeyPair()">Gerar Chave</button><br><br>
 
             <textarea id="publicKey" class="form-control" rows="4" readonly></textarea>
-            <button class="btn btn-secondary btn-custom" onclick="copyToClipboard('publicKey')">Copiar Chave Pública</button><br><br>
+            <button class="btn btn-secondary btn-custom" onclick="copyToClipboard('publicKey')">Copiar Chave Pública</button>
+            <button class="btn btn-secondary btn-custom" onclick="downloadKey('publicKey', 'public_key.pem')">Baixar Chave Pública</button><br><br>
 
             <textarea id="privateKey" class="form-control" rows="4" readonly></textarea>
-            <button class="btn btn-secondary btn-custom" onclick="copyToClipboard('privateKey')">Copiar Chave Privada</button><br><br>
+            <button class="btn btn-secondary btn-custom" onclick="copyToClipboard('privateKey')">Copiar Chave Privada</button>
+            <button class="btn btn-secondary btn-custom" onclick="downloadKey('privateKey', 'private_key.pem')">Baixar Chave Privada</button><br><br>
         </div>
 
         <!-- Tab de Simulação do Chat -->
@@ -202,6 +204,19 @@
             element.select();
             document.execCommand("copy");
             alert(`Conteúdo copiado para a área de transferência: ${element.value}`);
+        }
+
+        // Função para baixar a chave em um arquivo
+        function downloadKey(elementId, filename) {
+            const element = document.getElementById(elementId);
+            const blob = new Blob([element.value], { type: 'text/plain' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
         }
 
         // Abrir a primeira tab por padrão

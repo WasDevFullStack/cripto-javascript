@@ -1,47 +1,25 @@
-# Comunicação Segura entre Alice e Bob
+# Comunicação Segura
 
-Este é um exemplo de uma aplicação simples que demonstra como implementar comunicação segura entre duas partes usando criptografia de chave pública e privada.
+Este é um exemplo de uma aplicação de comunicação segura que utiliza criptografia RSA-OAEP para proteger as mensagens trocadas entre os usuários. A aplicação é composta por duas partes principais: a geração de chaves RSA e a simulação de um chat entre dois usuários.
 
-## Funcionalidades
+## Geração de Chave RSA
 
-- Geração de chaves RSA para Alice.
-- Criptografia de uma mensagem por Alice usando a chave pública de Bob.
-- Descriptografia da mensagem por Bob usando sua chave privada.
+Nesta seção, é possível gerar pares de chaves RSA público-privadas para comunicação segura. A chave pública é compartilhada entre os usuários para criptografar mensagens, enquanto a chave privada é mantida em segredo e usada para descriptografar as mensagens recebidas.
 
-## Tecnologias Utilizadas
+- Clique no botão "Gerar Chave" para gerar um novo par de chaves RSA.
+- Após a geração das chaves, é possível copiar a chave pública ou privada para a área de transferência clicando nos botões "Copiar Chave Pública" ou "Copiar Chave Privada", respectivamente.
+- Também é possível baixar a chave pública ou privada em formato PEM clicando nos botões "Baixar Chave Pública" ou "Baixar Chave Privada", respectivamente.
 
-- HTML
-- JavaScript
-- Bootstrap (para estilização)
+## Simulação do Chat
 
-## Como usar
+Nesta seção, é possível simular um chat seguro entre dois usuários, Alice e Bob. Os usuários podem trocar mensagens de texto e arquivos de forma segura, garantindo que apenas o destinatário possa ler o conteúdo.
 
-1. Clone este repositório em sua máquina local:
+- Digite uma mensagem no campo de texto abaixo do nome de usuário para escrever uma mensagem.
+- Selecione um arquivo clicando no botão "Escolha um arquivo" e envie-o junto com a mensagem.
+- As mensagens trocadas serão exibidas na área de histórico de conversas. As mensagens criptografadas são exibidas após serem descriptografadas, e os arquivos enviados são exibidos como links para download.
 
-git clone https://github.com/WasDevFullStack/cripto-javascript.git
+---
 
+Este é um exemplo básico de como usar criptografia RSA-OAEP para garantir a segurança da comunicação entre os usuários em uma aplicação web.
 
-2. Abra o arquivo `index.html` em seu navegador da web.
-
-3. Navegue entre as abas "Gerar Chave" e "Simulação do Chat" para ver as funcionalidades.
-
-## Funcionamento
-
-### Gerar Chave
-
-Na aba "Gerar Chave", você pode clicar no botão "Gerar Chave" para gerar um par de chaves RSA (pública e privada) para Alice. As chaves são exibidas em formato PEM (Privacy Enhanced Mail) e podem ser copiadas para a área de transferência clicando nos botões "Copiar Chave Pública" e "Copiar Chave Privada".
-
-### Simulação do Chat
-
-Na aba "Simulação do Chat", você pode:
-
-- Digitar uma mensagem na caixa de texto de Alice e clicar em "Enviar Mensagem". A mensagem será criptografada usando a chave pública de Bob e exibida na caixa de texto de Bob.
-- Clicar no botão "Descriptografar Mensagem" em Bob para descriptografar a mensagem usando sua chave privada. A mensagem descriptografada será exibida na caixa de texto abaixo.
-
-## Contribuição
-
-Contribuições são bem-vindas! Sinta-se à vontade para abrir um pull request ou relatar problemas.
-
-## Licença
-
-Este projeto está licenciado sob a [Licença MIT](LICENSE).
+Para executar a aplicação, basta abrir o arquivo `geradordechaves_chatsimulation_com_bootstrap.html` em um navegador da web compatível.

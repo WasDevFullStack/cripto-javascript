@@ -205,13 +205,32 @@
             }
         }
 
-        async function decryptMessage(encryptedMessage, privateKeyArmored) {
-            const privateKey = (await openpgp.key.readArmored(privateKeyArmored)).keys[0];
-            const decrypted = await openpgp.decrypt({
-                message: await openpgp.message.readArmored(encryptedMessage),
-                privateKeys: privateKey
-            });
-            return decrypted.data;
+        async function encryptMessage(message, publicKey) {
+            let encodedMessage = new TextEncoder().encode(message);
+
+            const encryptedMessage = await window.crypto.subtle.encrypt(
+                {
+                    name: "RSA-OAEP"
+                },
+                publicKey,
+                encodedMessage
+            );
+
+
+            const compressedMessage = pako.deflate(encryptedMessage);
+            return compressedMessage;
+        }
+
+        async function decryptMessage(encryptedMessage, privateKey) {
+            const decompressedMessage = pako.inflate(encryptedMessage);
+            const decryptedMessage = await window.crypto.subtle.decrypt(
+                {
+                    name: "RSA-OAEP"
+                },
+                privateKey,
+                decompressedMessage
+            );
+            return new TextDecoder().decode(decryptedMessage);
         }
 
         async function aliceSendMessage() {
@@ -222,7 +241,7 @@
                 return;
             }
             if (message) {
-                const encryptedMessage = await encryptMessage(message, publicKeyArmored);
+                const encryptedMessage = await encryptMessage(message, publicKey);
                 const messageObject = {
                     type: "message",
                     content: encryptedMessage
@@ -245,7 +264,7 @@
                 return;
             }
             if (message) {
-                const encryptedMessage = await encryptMessage(message, publicKeyArmored);
+                const encryptedMessage = await encryptMessage(message, publicKey);
                 const messageObject = {
                     type: "message",
                     content: encryptedMessage
@@ -308,7 +327,7 @@
             if (!isFile) {
                 // Se não for um arquivo, assume que é uma mensagem criptografada
                 const encryptedMessage = message.content;
-                const decryptedMessage = await decryptMessage(encryptedMessage, privateKeyArmored);
+                const decryptedMessage = await decryptMessage(encryptedMessage, privateKey);
                 if (sender === "Alice") {
                     conversationHistory.innerHTML += "<b class='alice-name'>Alice:</b> " + decryptedMessage + "<br>";
                 } else if (sender === "Bob") {
@@ -378,14 +397,7 @@
             return fileType.startsWith("image/");
         }
 
-        async function encryptMessage(message, publicKeyArmored) {
-            const publicKey = (await openpgp.key.readArmored(publicKeyArmored)).keys[0];
-            const { data: encrypted } = await openpgp.encrypt({
-                message: openpgp.message.fromText(message),
-                publicKeys: publicKey
-            });
-            return encrypted;
-        }
+        
 
         // Função para converter uma string base64 em um ArrayBuffer
         function base64ToArrayBuffer(base64) {

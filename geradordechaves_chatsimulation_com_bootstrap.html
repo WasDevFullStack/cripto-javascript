@@ -32,6 +32,11 @@
             padding: 10px;
             margin-bottom: 10px;
         }
+
+        /* Estilo para o nome "Alice" */
+        .alice-name {
+            color: pink; /* Defina a cor desejada */
+        }
     </style>
 </head>
 <body>
@@ -200,67 +205,64 @@
             }
         }
 
-        async function decryptMessage(encryptedMessage, privateKey) {
-			const decompressedMessage = pako.inflate(encryptedMessage);
-			const decryptedMessage = await window.crypto.subtle.decrypt(
-				{
-					name: "RSA-OAEP"
-				},
-				privateKey,
-				decompressedMessage
-			);
-			return new TextDecoder().decode(decryptedMessage);
-		}
+        async function decryptMessage(encryptedMessage, privateKeyArmored) {
+            const privateKey = (await openpgp.key.readArmored(privateKeyArmored)).keys[0];
+            const decrypted = await openpgp.decrypt({
+                message: await openpgp.message.readArmored(encryptedMessage),
+                privateKeys: privateKey
+            });
+            return decrypted.data;
+        }
 
         async function aliceSendMessage() {
-			const message = document.getElementById('aliceMessage').value;
-			const file = document.getElementById('aliceFile').files[0];
-			if (!message && !file) {
-				alert("Por favor, insira uma mensagem ou selecione um arquivo para enviar.");
-				return;
-			}
-			if (message) {
-				const encryptedMessage = await encryptMessage(message, publicKey);
-				const messageObject = {
-					type: "message",
-					content: arrayBufferToBase64(encryptedMessage)
-				};
-				bobMessages.push(messageObject);
-				handleMessage(messageObject, "Alice", false);
-			} else {
-				readFileAndSendMessage(file, publicKey, "Alice");
-			}
-			updateBobInterface();
-			document.getElementById('aliceMessage').value = "";
-			resetFileInput('aliceFile');
-		}
+            const message = document.getElementById('aliceMessage').value;
+            const file = document.getElementById('aliceFile').files[0];
+            if (!message && !file) {
+                alert("Por favor, insira uma mensagem ou selecione um arquivo para enviar.");
+                return;
+            }
+            if (message) {
+                const encryptedMessage = await encryptMessage(message, publicKeyArmored);
+                const messageObject = {
+                    type: "message",
+                    content: encryptedMessage
+                };
+                bobMessages.push(messageObject);
+                handleMessage(messageObject, "Alice", false);
+            } else {
+                readFileAndSendMessage(file, publicKeyArmored, "Alice");
+            }
+            updateBobInterface();
+            document.getElementById('aliceMessage').value = "";
+            resetFileInput('aliceFile');
+        }
 
-		async function bobSendMessage() {
-			const message = document.getElementById('bobMessage').value;
-			const file = document.getElementById('bobFile').files[0];
-			if (!message && !file) {
-				alert("Por favor, insira uma mensagem ou selecione um arquivo para enviar.");
-				return;
-			}
-			if (message) {
-				const encryptedMessage = await encryptMessage(message, publicKey);
-				const messageObject = {
-					type: "message",
-					content: arrayBufferToBase64(encryptedMessage)
-				};
-				aliceMessages.push(messageObject);
-				handleMessage(messageObject, "Bob", false);
-			} else {
-				readFileAndSendMessage(file, publicKey, "Bob");
-			}
-			updateAliceInterface();
-			document.getElementById('bobMessage').value = "";
-			resetFileInput('bobFile');
-		}
+        async function bobSendMessage() {
+            const message = document.getElementById('bobMessage').value;
+            const file = document.getElementById('bobFile').files[0];
+            if (!message && !file) {
+                alert("Por favor, insira uma mensagem ou selecione um arquivo para enviar.");
+                return;
+            }
+            if (message) {
+                const encryptedMessage = await encryptMessage(message, publicKeyArmored);
+                const messageObject = {
+                    type: "message",
+                    content: encryptedMessage
+                };
+                aliceMessages.push(messageObject);
+                handleMessage(messageObject, "Bob", false);
+            } else {
+                readFileAndSendMessage(file, publicKeyArmored, "Bob");
+            }
+            updateAliceInterface();
+            document.getElementById('bobMessage').value = "";
+            resetFileInput('bobFile');
+        }
 
-		async function readFileAndSendMessage(file, publicKey, sender) {
-			const dt = await file.arrayBuffer();
-            const encryptedFileContent = await encryptFile(dt);
+        async function readFileAndSendMessage(file, publicKeyArmored, sender) {
+            const dt = await file.arrayBuffer();
+            const encryptedFileContent = await encryptFile(dt, publicKeyArmored);
             const messageObject = {
                 type: "file",
                 content: encryptedFileContent,
@@ -274,133 +276,116 @@
                 aliceMessages.push(messageObject);
             }
             handleMessage(messageObject, sender, true);
-		}
+        }
 
-       
-
-		async function encryptFile(fileContent) {
-
+        async function encryptFile(fileContent, publicKeyArmored) {
             const filePublicKeys = (await openpgp.key.readArmored(publicKeyArmored)).keys;
-
             const data = new Uint8Array(fileContent);
             const data2 = arrayBufferToBase64(fileContent);
-
             const encryptedData = await openpgp.encrypt({
                 message: openpgp.message.fromText(data2),
                 publicKeys: filePublicKeys,
             });
-            
             return encryptedData;
-		}
+        }
 
-		async function decryptFile(encryptedFileContent) {
-            
+        async function decryptFile(encryptedFileContent, privateKeyArmored) {
             const filePrivateKeys = (await openpgp.key.readArmored(privateKeyArmored)).keys;
-
             const decryptedFileContent = await openpgp.decrypt({
                 message: await openpgp.message.readArmored(encryptedFileContent.data),
                 privateKeys: filePrivateKeys
             });
-
             return base64ToArrayBuffer(decryptedFileContent.data);;
-		}
-		
-		function arrayBufferToString(arrayBuffer) {
-			return new TextDecoder().decode(arrayBuffer);
-		}
+        }
+
+        function arrayBufferToString(arrayBuffer) {
+            return new TextDecoder().decode(arrayBuffer);
+        }
 
         async function handleMessage(message, sender, isFile) {
-			const conversationHistory = document.getElementById('conversationHistory');
+            const conversationHistory = document.getElementById('conversationHistory');
 
-			if (!isFile) {
-				// Se não for um arquivo, assume que é uma mensagem criptografada
-				const encryptedMessage = message.content;
-				const decryptedMessage = await decryptMessage(base64ToArrayBuffer(encryptedMessage), privateKey);
-				if (sender === "Alice") {
-					conversationHistory.innerHTML += "<b>Alice:</b> " + decryptedMessage + "<br>";
-				} else if (sender === "Bob") {
-					conversationHistory.innerHTML += "<b>Bob:</b> " + decryptedMessage + "<br>";
-				}
-			} else {
-				// Se for um arquivo, exibe-o na conversa
-				const decryptedFileContent = await decryptFile(message.content);
-				const file = new Blob([decryptedFileContent], { type: message.type });
-				if (sender === "Alice") {
-					if (isImage(message.type)) {
-						const img = document.createElement("img");
-						img.src = URL.createObjectURL(file);
-						img.classList.add("message-image");
-						conversationHistory.appendChild(img);
-						conversationHistory.appendChild(document.createElement("br"));
-                        addDownloadLink(conversationHistory,message);
-					} else {
-						const icon = document.createElement("i");
-						icon.classList.add("file-icon", "fa", "fa-file");
-						const link = document.createElement("a");
-						link.href = URL.createObjectURL(file);
-						link.download = message.name;
-						link.innerText = message.name;
-						conversationHistory.appendChild(icon);
-						conversationHistory.appendChild(link);
-						conversationHistory.appendChild(document.createElement("br"));
-					}
-				} else if (sender === "Bob") {
-					if (isImage(message.type)) {
-						const img = document.createElement("img");
-						img.src = URL.createObjectURL(file);
-						img.classList.add("message-image");
-						conversationHistory.appendChild(img);
-						conversationHistory.appendChild(document.createElement("br"));
-					} else {
-						const icon = document.createElement("i");
-						icon.classList.add("file-icon", "fa", "fa-file");
-						const link = document.createElement("a");
-						link.href = URL.createObjectURL(file);
-						link.download = message.name;
-						link.innerText = message.name;
-						conversationHistory.appendChild(icon);
-						conversationHistory.appendChild(link);
-						conversationHistory.appendChild(document.createElement("br"));
-					}
-				}
-			}
-			conversationHistory.scrollTop = conversationHistory.scrollHeight;
-		}
-
+            if (!isFile) {
+                // Se não for um arquivo, assume que é uma mensagem criptografada
+                const encryptedMessage = message.content;
+                const decryptedMessage = await decryptMessage(encryptedMessage, privateKeyArmored);
+                if (sender === "Alice") {
+                    conversationHistory.innerHTML += "<b class='alice-name'>Alice:</b> " + decryptedMessage + "<br>";
+                } else if (sender === "Bob") {
+                    conversationHistory.innerHTML += "<b>Bob:</b> " + decryptedMessage + "<br>";
+                }
+            } else {
+                // Se for um arquivo, exibe-o na conversa
+                const decryptedFileContent = await decryptFile(message.content, privateKeyArmored);
+                const file = new Blob([decryptedFileContent], { type: message.type });
+                if (sender === "Alice") {
+                    conversationHistory.innerHTML += "<b class='alice-name'>Alice:</b><br>"
+                    if (isImage(message.type)) {
+                        const img = document.createElement("img");
+                        img.src = URL.createObjectURL(file);
+                        img.classList.add("message-image");
+                        conversationHistory.appendChild(img);
+                        conversationHistory.appendChild(document.createElement("br"));
+                        addDownloadLink(conversationHistory, message);
+                    } else {
+                        const icon = document.createElement("i");
+                        icon.classList.add("file-icon", "fa", "fa-file");
+                        const link = document.createElement("a");
+                        link.href = URL.createObjectURL(file);
+                        link.download = message.name;
+                        link.innerText = message.name;
+                        conversationHistory.appendChild(icon);
+                        conversationHistory.appendChild(link);
+                        conversationHistory.appendChild(document.createElement("br"));
+                    }
+                } else if (sender === "Bob") {
+                    conversationHistory.innerHTML += "<b>Bob:</b><br>";
+                    if (isImage(message.type)) {
+                        const img = document.createElement("img");
+                        img.src = URL.createObjectURL(file);
+                        img.classList.add("message-image");
+                        conversationHistory.appendChild(img);
+                        conversationHistory.appendChild(document.createElement("br"));
+                    } else {
+                        const icon = document.createElement("i");
+                        icon.classList.add("file-icon", "fa", "fa-file");
+                        const link = document.createElement("a");
+                        link.href = URL.createObjectURL(file);
+                        link.download = message.name;
+                        link.innerText = message.name;
+                        conversationHistory.appendChild(icon);
+                        conversationHistory.appendChild(link);
+                        conversationHistory.appendChild(document.createElement("br"));
+                    }
+                }
+            }
+            conversationHistory.scrollTop = conversationHistory.scrollHeight;
+        }
 
         function addDownloadLink(conversationHistory, message) {
-			const downloadLink = document.createElement("a");
-			downloadLink.href = URL.createObjectURL(message.file);
-			downloadLink.download = message.name;
-			if (isImage(message.type)) {
-				downloadLink.innerText = "Baixar";
-			}
-			conversationHistory.appendChild(downloadLink);
-			conversationHistory.appendChild(document.createElement("br"));
-		}
-
+            const downloadLink = document.createElement("a");
+            downloadLink.href = URL.createObjectURL(message.file);
+            downloadLink.download = message.name;
+            if (isImage(message.type)) {
+                downloadLink.innerText = "Baixar";
+            }
+            conversationHistory.appendChild(downloadLink);
+            conversationHistory.appendChild(document.createElement("br"));
+        }
 
         // Função para verificar se um arquivo é uma imagem
         function isImage(fileType) {
             return fileType.startsWith("image/");
         }
 
-        async function encryptMessage(message, publicKey) {
-            let encodedMessage = new TextEncoder().encode(message);
-            
-            const encryptedMessage = await window.crypto.subtle.encrypt(
-                {
-                    name: "RSA-OAEP"
-                },
-                publicKey,
-                encodedMessage
-            );
-            
-
-            const compressedMessage = pako.deflate(encryptedMessage);
-            return compressedMessage;
+        async function encryptMessage(message, publicKeyArmored) {
+            const publicKey = (await openpgp.key.readArmored(publicKeyArmored)).keys[0];
+            const { data: encrypted } = await openpgp.encrypt({
+                message: openpgp.message.fromText(message),
+                publicKeys: publicKey
+            });
+            return encrypted;
         }
-
 
         // Função para converter uma string base64 em um ArrayBuffer
         function base64ToArrayBuffer(base64) {
@@ -472,9 +457,9 @@
 
         // Abrir a primeira tab por padrão
         document.getElementsByClassName("nav-link")[0].click();
-		document.addEventListener("DOMContentLoaded", function() {
-			document.querySelector("#generateKeyButton").click();
-		});
+        document.addEventListener("DOMContentLoaded", function() {
+            document.querySelector("#generateKeyButton").click();
+        });
     </script>
 </body>
 </html>
